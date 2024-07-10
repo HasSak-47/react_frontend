@@ -1,8 +1,5 @@
-import React, { ChangeEvent, useState } from 'react';
-import logo from './logo.svg';
+import React, { useState } from 'react';
 import './App.css';
-import { request } from 'http';
-import { RequestOptions } from 'https';
 
 interface Product{
 	id: number,
@@ -19,64 +16,66 @@ interface Sale{
 }
 
 
-function SaleRow({name, price, count}: Sale){
-	return (
-	<tr>
-		<td> <input defaultValue={name}/> </td>
-		<td> <input defaultValue={price}/> </td>
-		<td> <input defaultValue={count}/> </td>
-		<td> <input defaultValue={price * count}/> </td>
-	</tr>
-	);
-}
-
-const sales : Sale[] = [];
-
-enum InputState{
-	SettingProduct,
-	SettingPrice,
-	SettingCount,
-	AddProduct,
-}
-
 function Ticket(){
 	const [results, setResults] = useState("");
+	const [sales, setsales] = useState( <div />);
+	const [totalCost, settotalCost] = useState(0);
 
-	let ask_for = async (event : ChangeEvent) => {
+	const products : Sale[]= [];
+	let options : Product[] = [];
+
+	let ask_for = async (event : React.KeyboardEvent<HTMLInputElement>) => {
 		let target = event.target as HTMLInputElement;
 		let r = await fetch(`/api/v1/product/search?name=${target.value}&total=10`, { method: "GET", });
 		let prods : {product: Product, score: number}[]= (await r.json()).products;
-		let best = prods[0].product.name;
-		setResults(best);
-		console.log(best);
+		if(prods.length != 0){
+			options = prods.map(k => { return k.product });
+			setResults(options[0].name);
+		}
+
+		if(event.code == "Enter"){
+			console.log(options[0].name);
+			target.value = options[0].name
+			let count = document.getElementById("count")! as HTMLInputElement;
+			(document.getElementById("price")! as HTMLInputElement).value = (options[0].price / 100).toString();
+			count.focus();
+			count.value = "1"
+			return;
+		}
 	};
+
+	let process_price = async (event: React.KeyboardEvent<HTMLInputElement>) => {
+		if(event.code == "Enter"){
+		}
+	}
 
 	return (
 	<div>
 		<table> <tbody>
 			<tr>
 				<th> name  </th>
-				<th> price </th>
 				<th> count </th>
+				<th> price </th>
 				<th> total </th>
 			</tr>
+				{ sales }
 			<tr>
-				<td> <input name="name"  id="name" onChange={ask_for}/>  </td>
-				<td> <input name="price" id="price"/> </td>
-				<td> <input name="count" id="count"/> </td>
-				<td> <input name="total" id="total"/> </td>
+				<td> <input name="name"  id="name"  onKeyDown={ask_for}/>  </td>
+				<td> <input name="count" id="count" onKeyDown={process_price} type="number"/> </td>
+				<td> <input name="price" id="price" type="number"/> </td>
+				<td> <input name="total" id="total" type="number"/> </td>
 			</tr>
 		</tbody> </table>
 		total
-		<div id='total_cost'> 0 </div>
+		<div id='total_cost'> {totalCost} </div>
 		<button> guardar </button>
 		<div> best match : {results} </div>
 	</div>);
 }
 
 function App() {
-    return (
-        <div className="App">
+	return (
+		<div className="App">
 			<header>
 				<button onClick={() => {
 					let childs = document.getElementById('BOD')?.children!;
@@ -86,8 +85,8 @@ function App() {
 				<button> Signin </button>
 			</header>
 			<Ticket />
-        </div>
-    );
+		</div>
+	);
 }
 
 export default App;
