@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { ChangeEventHandler, KeyboardEventHandler, useState } from 'react';
 import './App.css';
 
 interface Product{
@@ -15,42 +15,71 @@ interface Sale{
 	count: number,
 }
 
+async function get_best(query: string, count: number){
+	let r = await fetch(`/api/v1/product/search?name=${query}&total=${count}`, { method: "GET", });
+	let prods : {product: Product, score: number}[]= (await r.json()).products;
+	return prods;
+}
+
+async function get_price(name: string){
+	let r = await fetch(`/api/v1/product/search_exact/${name}`, { method: "GET", });
+	if(r.status != 200){
+		return 0;
+	}
+	let prods : {product: Product, score: number}= (await r.json()).products;
+	return prods.product.price;
+}
+
+type State = 'name' | 'count' | 'price' | 'total'
+let c_state : State = 'name';
+
+interface CProduct {
+	name : null | string,
+	price: null | number,
+	count: null | number,
+	total: null | number,
+}
+
+function nextState(e: React.KeyboardEvent) {
+	if(e.key != 'Enter'){
+		return;
+	}
+
+	let next : State = 'name';
+	switch (c_state){
+		case 'name':
+			next = 'count';
+			break;
+		case 'count':
+			next = 'price';
+			break;
+		case 'price':
+			next = 'total';
+			break;
+	}
+	c_state = next;
+	document.getElementById(c_state)?.focus();
+}
 
 function Ticket(){
-	const [results, setResults] = useState("");
-	const [sales, setsales] = useState( <div />);
-	const [totalCost, settotalCost] = useState(0);
-
-	const products : Sale[]= [];
-	let options : Product[] = [];
-
-	let ask_for = async (event : React.KeyboardEvent<HTMLInputElement>) => {
-		let target = event.target as HTMLInputElement;
-		let r = await fetch(`/api/v1/product/search?name=${target.value}&total=10`, { method: "GET", });
-		let prods : {product: Product, score: number}[]= (await r.json()).products;
-		if(prods.length != 0){
-			options = prods.map(k => { return k.product });
-			setResults(options[0].name);
-		}
-
-		if(event.code == "Enter"){
-			console.log(options[0].name);
-			target.value = options[0].name
-			let count = document.getElementById("count")! as HTMLInputElement;
-			(document.getElementById("price")! as HTMLInputElement).value = (options[0].price / 100).toString();
-			count.focus();
-			count.value = "1"
-			return;
-		}
-	};
-
-	let process_price = async (event: React.KeyboardEvent<HTMLInputElement>) => {
-		if(event.code == "Enter"){
-		}
+	const [options, setoptions] = useState(<datalist id="products-list"/>);
+	const name_change = (e: React.ChangeEvent) => {
+		let val = (e.target as HTMLInputElement).value;
+		get_best(val, 10).then(best => {
+			let names = best.map(p => <option> {p.product.name} </option>);
+			setoptions(<datalist id="products-list"> {names} </datalist>)
+			let val = (e.target as HTMLInputElement).value;
+			let price = document.getElementById('price') as HTMLInputElement;
+			get_price(val).then(v => price.value = String(v)).catch();
+		});
 	}
+	const count_change = () => { }
+	const price_change = () => { }
+	const total_change = () => { }
 
 	return (
 	<div>
+		{ options }
 		<table> <tbody>
 			<tr>
 				<th> name  </th>
@@ -58,32 +87,19 @@ function Ticket(){
 				<th> price </th>
 				<th> total </th>
 			</tr>
-				{ sales }
 			<tr>
-				<td> <input name="name"  id="name"  onKeyDown={ask_for}/>  </td>
-				<td> <input name="count" id="count" onKeyDown={process_price} type="number"/> </td>
-				<td> <input name="price" id="price" type="number"/> </td>
-				<td> <input name="total" id="total" type="number"/> </td>
+				<td> <input name="name"  id="name" onChange={name_change}   onKeyUp={nextState} list="products-list" onFocus={() => c_state = 'name'}/> </td>
+				<td> <input name="count" id="count" onChange={count_change} onKeyUp={nextState} type="number" onFocus={() => c_state = 'count'}/> </td>
+				<td> <input name="price" id="price" onChange={price_change} onKeyUp={nextState} type="number" onFocus={() => c_state = 'price'}/> </td>
+				<td> <input name="total" id="total" onChange={total_change} onKeyUp={nextState} type="number" onFocus={() => c_state = 'total'}/> </td>
 			</tr>
 		</tbody> </table>
-		total
-		<div id='total_cost'> {totalCost} </div>
-		<button> guardar </button>
-		<div> best match : {results} </div>
 	</div>);
 }
 
 function App() {
 	return (
 		<div className="App">
-			<header>
-				<button onClick={() => {
-					let childs = document.getElementById('BOD')?.children!;
-				}}> New Ticket </button>
-				<button> Add Products </button>
-				<button> Login </button>
-				<button> Signin </button>
-			</header>
 			<Ticket />
 		</div>
 	);
