@@ -7,7 +7,7 @@
 		@apply m-1
 	}
 	td {
-		@apply border-2 border-black border-2 border-black border-2 border-black
+		@apply border-2 border-gray-300
 	}
 
 	button {
